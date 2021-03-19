@@ -7,6 +7,7 @@ use App\Http\Requests\MassDestroyPaymentRequest;
 use App\Http\Requests\StorePaymentRequest;
 use App\Http\Requests\UpdatePaymentRequest;
 use App\Models\Payment;
+use App\Models\StkRequest;
 use Gate;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,6 +33,35 @@ class PaymentController extends Controller
     public function store(StorePaymentRequest $request)
     {
         $payment = Payment::create($request->all());
+
+        $phone = $request->input("phone");
+        $amount = 1;
+        $BusinessShortCode = '174379';
+        $LipaNaMpesaPasskey = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919';
+        $TransactionType = "CustomerPayBillOnline";
+        $PartyA = $phone;
+        $PartyB = $BusinessShortCode;
+        $CallBackURL = 'https://0c2adb76560c.ngrok.io/api/test';
+        $AccountReference = 'ACC1';
+        $TransactionDesc = 'test 1';
+        $Remarks = '';
+
+        $mpesa= new \Safaricom\Mpesa\Mpesa();
+        $stkPushSimulation=$mpesa->STKPushSimulation(
+                                                            $BusinessShortCode,
+                                                            $LipaNaMpesaPasskey, $TransactionType, $amount, $PartyA, $PartyB,
+                                                            $phone, $CallBackURL, $AccountReference,
+                                                            $TransactionDesc, $Remarks);
+
+        $stkPushSimulation = json_decode($stkPushSimulation);
+
+        StkRequest::create([
+            'request' => $stkPushSimulation->CheckoutRequestID,
+            'amount' => $amount,
+            'msisdn' => $phone,
+        ]);
+
+        return json_encode($stkPushSimulation);
 
         return redirect()->route('admin.payments.index');
     }
